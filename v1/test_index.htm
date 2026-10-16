@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ChronoSync - Precision Time Synchronizer</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        dark: {
+                            bg: '#090d16',
+                            card: '#131b2e',
+                            border: '#1e293b',
+                            accent: '#3b82f6',
+                            glow: 'rgba(59, 130, 246, 0.15)'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace']
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="chronosync.css">
+
+</head>
+<body class="min-h-screen flex flex-col justify-between bg-gradient-to-br from-[#090d16] via-[#0f172a] to-[#0b1329] text-slate-100 p-4 sm:p-6 md:p-8">
+
+    <!-- Toast / Message Box Notification -->
+    <div id="toast" class="fixed top-5 right-5 z-50 transform translate-y-[-150%] opacity-0 transition-all duration-300 max-w-md">
+        <div id="toast-content" class="flex items-center gap-3 px-4 py-3 rounded-xl glass-panel border border-blue-500/30 text-sm shadow-xl">
+            <i id="toast-icon" class="fa-solid fa-circle-info text-blue-400 text-lg"></i>
+            <div>
+                <p id="toast-title" class="font-semibold text-white">Notice</p>
+                <p id="toast-message" class="text-slate-300 text-xs">Operation completed successfully.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Header Section -->
+    <header class="w-full max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between pb-6 border-b border-slate-800/80 gap-4">
+        <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-500 flex items-center justify-center shadow-lg shadow-blue-500/30">
+                <i class="fa-solid fa-stopwatch text-white text-lg"></i>
+            </div>
+            <div>
+                <h1 class="text-xl font-bold tracking-tight bg-gradient-to-r from-white via-slate-200 to-slate-400 bg-clip-text text-transparent">ChronoSync</h1>
+                <p class="text-xs text-slate-400">HTTP Header Precision Time Synchronizer</p>
+            </div>
+        </div>
+        <div class="flex items-center gap-3">
+            <div id="sync-status-badge" class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-medium">
+                <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                <span id="sync-status-text">Synchronized</span>
+            </div>
+            <button onclick="triggerResync()" id="resync-btn" class="flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 active:scale-95 transition text-xs font-semibold shadow-lg shadow-blue-600/20 text-white cursor-pointer">
+                <i class="fa-solid fa-rotate-right" id="resync-icon"></i>
+                <span>Re-sync Time</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Dashboard Layout -->
+    <main class="w-full max-w-6xl mx-auto my-8 grid grid-cols-1 lg:grid-cols-12 gap-6 flex-grow">
+        
+        <!-- Left Column: Primary Clock & Visualizer (7 cols) -->
+        <div class="lg:col-span-7 flex flex-col gap-6">
+            
+            <!-- Digital Clock Hero Panel -->
+            <div class="glass-panel rounded-3xl p-6 sm:p-8 relative overflow-hidden glow-effect flex flex-col justify-between min-h-[240px]">
+                <!-- Background decorative glow -->
+                <div class="absolute -right-16 -top-16 w-64 h-64 bg-blue-600/10 rounded-full blur-3xl pointer-events-none"></div>
+                <div class="absolute -left-16 -bottom-16 w-64 h-64 bg-indigo-600/10 rounded-full blur-3xl pointer-events-none"></div>
+
+                <div class="flex justify-between items-center z-10">
+                    <span class="text-xs uppercase tracking-widest text-slate-400 font-semibold flex items-center gap-2">
+                        <i class="fa-solid fa-globe text-blue-400"></i> UTC / Synchronized Server Time
+                    </span>
+                    <span id="date-display" class="text-xs font-medium text-slate-300 bg-slate-800/60 px-3 py-1 rounded-full border border-slate-700/50">
+                        Loading date...
+                    </span>
+                </div>
+
+                <!-- Large Digital Clock Display -->
+                <div class="my-6 z-10 flex items-baseline justify-center sm:justify-start flex-wrap gap-1">
+                    <span id="time-hours" class="text-6xl sm:text-7xl font-extrabold font-mono tracking-tight text-white">00</span>
+                    <span class="text-5xl sm:text-6xl font-bold font-mono text-blue-500 animate-pulse">:</span>
+                    <span id="time-minutes" class="text-6xl sm:text-7xl font-extrabold font-mono tracking-tight text-white">00</span>
+                    <span class="text-5xl sm:text-6xl font-bold font-mono text-blue-500 animate-pulse">:</span>
+                    <span id="time-seconds" class="text-6xl sm:text-7xl font-extrabold font-mono tracking-tight text-white">00</span>
+                    <span id="time-milliseconds" class="text-2xl sm:text-3xl font-bold font-mono text-blue-400/80 ml-2">.000</span>
+                </div>
+
+                <!-- Footer info in clock box -->
+                <div class="flex flex-wrap items-center justify-between pt-4 border-t border-slate-800/80 text-xs text-slate-400 z-10 gap-2">
+                    <div class="flex items-center gap-2">
+                        <i class="fa-solid fa-server text-indigo-400"></i>
+                        <span>Source: <span id="source-url" class="text-slate-300 font-mono">window.location.href (HEAD)</span></span>
+                    </div>
+                    <div class="flex items-center gap-1.5 text-emerald-400 font-medium">
+                        <i class="fa-solid fa-shield-halved"></i>
+                        <span>Drift Corrected</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Analog Clock Face & Secondary Widget Panel -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                
+                <!-- Analog Clock Card -->
+                <div class="glass-panel rounded-3xl p-6 flex flex-col items-center justify-center relative">
+                    <h3 class="text-xs uppercase tracking-widest text-slate-400 font-semibold mb-4 w-full text-left">Analog Synchronizer</h3>
+                    
+                    <div class="relative w-44 h-44 rounded-full border-4 border-slate-700/60 bg-slate-900/40 shadow-inner flex items-center justify-center my-2">
+                        <!-- Clock markers -->
+                        <div class="absolute w-1 h-2 bg-slate-500 top-1 left-1/2 -translate-x-1/2"></div>
+                        <div class="absolute w-2 h-1 bg-slate-500 right-1 top-1/2 -translate-y-1/2"></div>
+                        <div class="absolute w-1 h-2 bg-slate-500 bottom-1 left-1/2 -translate-x-1/2"></div>
+                        <div class="absolute w-2 h-1 bg-slate-500 left-1 top-1/2 -translate-y-1/2"></div>
+
+                        <!-- Clock Hands -->
+                        <div id="analog-hour" class="absolute w-1.5 h-12 bg-white rounded-full origin-bottom bottom-1/2 left-[calc(50%-3px)] transition-transform duration-75"></div>
+                        <div id="analog-minute" class="absolute w-1 h-16 bg-slate-300 rounded-full origin-bottom bottom-1/2 left-[calc(50%-2px)] transition-transform duration-75"></div>
+                        <div id="analog-second" class="absolute w-0.5 h-18 bg-blue-500 rounded-full origin-bottom bottom-1/2 left-[calc(50%-1px)] transition-transform duration-75"></div>
+                        <!-- Center pin -->
+                        <div class="w-3 h-3 rounded-full bg-blue-500 border-2 border-white z-10"></div>
+                    </div>
+                    <span id="timezone-label" class="text-xs text-slate-400 mt-2 font-mono">Local Timezone Offset</span>
+                </div>
+
+                <!-- Quick Actions & Diagnostics Mini-Card -->
+                <div class="glass-panel rounded-3xl p-6 flex flex-col justify-between">
+                    <div>
+                        <h3 class="text-xs uppercase tracking-widest text-slate-400 font-semibold mb-3">Sync Controls</h3>
+                        <p class="text-xs text-slate-400 leading-relaxed mb-4">Automatically recalibrate time offset against server latency every few minutes.</p>
+                    </div>
+
+                    <div class="space-y-3">
+                        <div class="flex items-center justify-between bg-slate-900/50 p-3 rounded-xl border border-slate-800">
+                            <span class="text-xs font-medium text-slate-300">Auto-Sync Interval</span>
+                            <select id="auto-sync-select" onchange="updateAutoSyncInterval()" class="bg-slate-800 text-xs text-white px-2 py-1 rounded-lg border border-slate-700 focus:outline-none focus:border-blue-500 font-mono">
+                                <option value="60000">Every 1 Min</option>
+                                <option value="300000" selected>Every 5 Mins</option>
+                                <option value="900000">Every 15 Mins</option>
+                                <option value="0">Disabled</option>
+                            </select>
+                        </div>
+
+                        <div class="flex items-center justify-between bg-slate-900/50 p-3 rounded-xl border border-slate-800">
+                            <span class="text-xs font-medium text-slate-300">Time Format</span>
+                            <button onclick="toggleTimeFormat()" id="format-toggle-btn" class="text-xs bg-slate-800 hover:bg-slate-700 text-blue-400 font-mono px-3 py-1 rounded-lg border border-slate-700 transition">
+                                24-Hour
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+
+        <!-- Right Column: Live Diagnostics & Drift Simulation (5 cols) -->
+        <div class="lg:col-span-5 flex flex-col gap-6">
+            
+            <!-- Live Diagnostics Panel -->
+            <div class="glass-panel rounded-3xl p-6 flex flex-col gap-5">
+                <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+                    <h3 class="text-xs uppercase tracking-widest text-slate-400 font-semibold flex items-center gap-2">
+                        <i class="fa-solid fa-chart-line text-blue-400"></i> Live Diagnostics & Metrics
+                    </h3>
+                    <span class="text-[10px] bg-blue-500/10 text-blue-400 px-2 py-0.5 rounded font-mono border border-blue-500/20">RTT Correction Active</span>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <!-- Metric 1: RTT -->
+                    <div class="bg-slate-900/60 p-4 rounded-2xl border border-slate-800 flex flex-col justify-between">
+                        <span class="text-[11px] text-slate-400 flex items-center gap-1.5">
+                            <i class="fa-solid fa-wifi text-indigo-400"></i> Round-Trip (RTT)
+                        </span>
+                        <div class="mt-2">
+                            <span id="metric-rtt" class="text-2xl font-bold font-mono text-white">0</span>
+                            <span class="text-xs text-slate-400 font-mono">ms</span>
+                        </div>
+                        <span class="text-[10px] text-slate-500 mt-1">Network delay halved</span>
+                    </div>
+
+                    <!-- Metric 2: Offset / Drift -->
+                    <div class="bg-slate-900/60 p-4 rounded-2xl border border-slate-800 flex flex-col justify-between">
+                        <span class="text-[11px] text-slate-400 flex items-center gap-1.5">
+                            <i class="fa-solid fa-arrows-split-up-and-left text-blue-400"></i> Clock Offset
+                        </span>
+                        <div class="mt-2">
+                            <span id="metric-offset" class="text-2xl font-bold font-mono text-white">0</span>
+                            <span class="text-xs text-slate-400 font-mono">ms</span>
+                        </div>
+                        <span class="text-[10px] text-slate-500 mt-1">Server - Client delta</span>
+                    </div>
+                </div>
+
+                <!-- Time Comparison Table / Breakdown -->
+                <div class="space-y-3 pt-2">
+                    <div class="flex items-center justify-between text-xs bg-slate-900/40 p-3 rounded-xl border border-slate-800/80">
+                        <span class="text-slate-400">Client Local Time:</span>
+                        <span id="diag-local-time" class="font-mono font-medium text-slate-200">--:--:--.---</span>
+                    </div>
+                    <div class="flex items-center justify-between text-xs bg-slate-900/40 p-3 rounded-xl border border-slate-800/80">
+                        <span class="text-slate-400">Server Response Date:</span>
+                        <span id="diag-server-date" class="font-mono font-medium text-blue-400">--:--:--.---</span>
+                    </div>
+                    <div class="flex items-center justify-between text-xs bg-slate-900/40 p-3 rounded-xl border border-slate-800/80">
+                        <span class="text-slate-400">Last Synced Ago:</span>
+                        <span id="diag-last-sync" class="font-mono font-medium text-emerald-400">Just now</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Drift Simulation & Testing Panel -->
+            <div class="glass-panel rounded-3xl p-6 flex flex-col gap-4">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-xs uppercase tracking-widest text-slate-400 font-semibold flex items-center gap-2">
+                        <i class="fa-solid fa-flask text-amber-400"></i> Drift & Error Simulation
+                    </h3>
+                    <span class="text-[10px] bg-amber-500/10 text-amber-400 px-2 py-0.5 rounded font-mono border border-amber-500/20">Sandbox</span>
+                </div>
+                
+                <p class="text-xs text-slate-400">Simulate inaccurate device clocks or artificial time skew to test correction resilience.</p>
+
+                <div class="space-y-3">
+                    <div>
+                        <div class="flex justify-between text-xs mb-1.5 font-medium">
+                            <span class="text-slate-300">Artificial Client Clock Skew:</span>
+                            <span id="skew-value-label" class="text-amber-400 font-mono">+0 ms</span>
+                        </div>
+                        <input type="range" id="skew-slider" min="-300000" max="300000" step="1000" value="0" oninput="onSkewSliderChange(this.value)" class="w-full accent-amber-500 bg-slate-800 h-2 rounded-lg cursor-pointer">
+                        <div class="flex justify-between text-[10px] text-slate-500 mt-1">
+                            <span>-5 Mins</span>
+                            <span>Exact (0)</span>
+                            <span>+5 Mins</span>
+                        </div>
+                    </div>
+
+                    <div class="flex gap-2 pt-1">
+                        <button onclick="resetSkew()" class="flex-1 py-2 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-semibold text-slate-300 transition cursor-pointer">
+                            Reset Skew
+                        </button>
+                        <button onclick="simulateRandomDrift()" class="flex-1 py-2 px-3 rounded-xl bg-amber-600/20 hover:bg-amber-600/30 border border-amber-500/40 text-xs font-semibold text-amber-300 transition cursor-pointer flex items-center justify-center gap-1.5">
+                            <i class="fa-solid fa-wand-magic-sparkles"></i> Random Drift
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="w-full max-w-6xl mx-auto pt-6 border-t border-slate-800/80 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-500 gap-2">
+        <p>ChronoSync Engine &bull; HTTP HEAD Date Header RTT Algorithm</p>
+        <p>Precise real-time browser time synchronization</p>
+    </footer>
+<script src="chronosync.js">
+
+</body>
+</html>
